@@ -1,17 +1,22 @@
 let express = require('express'),
 	Todo = require('./todo'),
 	bodyParser = require('body-parser'),
+	multer = require('multer'),
+	upload = multer(),
+	methodOverride = require('method-override'),
 	passport = require('passport'),
 	LocalStrategy = require('passport-local').Strategy,
 	BearerStrategy =  require('passport-http-bearer').Strategy,
 	jwt = require('jwt-simple'),
 	Sequelize = require('sequelize'),
+	request = require('request'),
 	TodoFactory = require('../models/todo'),
 	ADMIN = 'admin',
 	ADMIN_PASSWORD = 'password',
 	SECRET = 'mysecret'
 
 let sequelize = new Sequelize('postgres://myuser:OBMITTED@localhost/mydb')
+let authToken
 
 sequelize
   .authenticate()
@@ -20,6 +25,10 @@ sequelize
 
 	let app = express()
 	app.use(bodyParser.json())
+	app.use(bodyParser.urlencoded({ extended: true })); 
+	app.use(upload.array()); 
+	app.use(express.static('public'));
+	app.use(methodOverride('_method'));
 
 	// no cache!
 	app.use((req, res, next) => {
@@ -55,32 +64,53 @@ sequelize
 	  '/login',
 	  passport.authenticate('local', { session: false }),
 	  (req, res) => {
-	    res.send({
-	      token: req.user,
-	    })
+	  	authToken = req.user
+	  	res.redirect('/todos/?token=' + req.user)
 	  },
 	)
 
 	// basic routes
-	// TODO: handle errors
-	app.get('/todos', passport.authenticate('bearer', { session: false }), (_, res) => {
-	  Todo.findAll().then((todos) => {
-	    res.send(todos)
-	  })
+	app.get('/todos', (req, res) => {
+		if (req.query.token === authToken) {
+			Todo.findAll({ raw: true }).then((todos) => {
+		    res.render('todos', { data: JSON.stringify(todos), token: req.query.token })
+		  })
+		} else {
+			res.redirect('/')
+		}	  
 	})
 
-	// FIXME add note in the proper way...
-	app.post('/todos', passport.authenticate('bearer', { session: false }), (req, res) => {
-	  Todo.create({ note: req.body.note })
-	    .then((todo) => {
-	      res.send(todo)
-	    })
+	app.post('/todos', (req, res) => {
+		if (authToken) {
+			Todo.create({ note: req.body.note })
+		    .then((todo) => {
+		      res.redirect('/todos/?token=' + authToken)
+		    })
+		} else {
+			res.redirect('/')
+		}
 	})
 
-	app.delete('/todos/:id', passport.authenticate('bearer', { session: false }), (req, res) => {
-	  Todo.findById(req.params.id)
-	    .then(todo => todo.destroy())
-	    .then(() => res.send())
+	app.post('/todos/delete', (req, res) => {
+		if (authToken) {
+		  Todo.findById(req.body.id)
+			.then(todo => todo.destroy())
+			.then(() => res.redirect('/todos/?token=' + authToken))
+		} else {
+			res.redirect('/')
+		}
+	})
+
+	// frontend part
+	app.set('view engine', 'pug')
+	app.get('/', (req, res) => {
+		res.render('login')
+	})
+	app.get('/addpage', (req, res) => {
+		res.render('add')
+	})
+	app.get('/deletepage', (req, res) => {
+		res.render('delete', { token: req.query.token })
 	})
 
 	// port info

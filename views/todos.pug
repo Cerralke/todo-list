@@ -1,0 +1,12 @@
+h1 Your todos:
+p #{data}
+button(onclick='movetoadd()') Add
+button(onclick='movetodelete()') Delete
+
+script.
+  function movetoadd () {
+    window.location.href = '/addpage/?token='
+  }
+  function movetodelete () {
+  	window.location.href = '/deletepage/?token='
+  }

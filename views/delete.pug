@@ -1,0 +1,7 @@
+h1 Delete TODO
+block content
+    form(method='POST' action='/todos/delete')
+      div.form-group
+        label(for='deleteid') Give id to delete:
+        input#deleteid.form-control(type='text' name='id')
+      button(type='submit') Delete TODO

@@ -1,0 +1,8 @@
+h1 Add your TODO
+// todo form
+block content
+    form(method='POST' action='/todos')
+      div.form-group
+        label(for='todonote') What is to do?
+        input#todonote.form-control(type='text' name='note')
+      button(type='submit') Add TODO
